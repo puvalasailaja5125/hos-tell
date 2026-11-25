@@ -1,0 +1,120 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+
+enum Role {
+  ADMIN
+  TENANT
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+}
+
+enum MealType {
+  BREAKFAST
+  LUNCH
+  SNACKS
+  DINNER
+}
+
+enum TicketStatus {
+  OPEN
+  IN_PROGRESS
+  RESOLVED
+}
+
+model Room {
+  id         Int    @id @default(autoincrement())
+  number     String @unique
+  rentAmount Int
+  tenants    User[]
+}
+
+model User {
+  id           String   @id @default(cuid())
+  name         String
+  email        String   @unique
+  passwordHash String
+  role         Role     @default(TENANT)
+  roomId       Int?
+  room         Room?    @relation(fields: [roomId], references: [id])
+  createdAt    DateTime @default(now())
+
+  payments   RentPayment[]
+  mealOptIns MealOptIn[]
+  tickets    Ticket[]
+  leaves     LeaveRequest[]
+  resetTokens PasswordResetToken[]
+}
+
+model RentPayment {
+  id            Int           @id @default(autoincrement())
+  userId        String
+  user          User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  month         String // like "2026-11"
+  amount        Int
+  status        PaymentStatus @default(PENDING)
+  paidAt        DateTime?
+
+  @@unique([userId, month]) // one bill per tenant per month
+}
+
+model MealOptIn {
+  id       Int      @id @default(autoincrement())
+  userId   String
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  date     DateTime @db.Date
+  mealType MealType
+  optedIn  Boolean  @default(true)
+
+  @@unique([userId, date, mealType]) // one choice per meal per day
+}
+
+model Ticket {
+  id          Int          @id @default(autoincrement())
+  userId      String
+  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title       String
+  description String
+  status      TicketStatus @default(OPEN)
+  createdAt   DateTime     @default(now())
+  resolvedAt  DateTime?
+}
+
+enum LeaveStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+model LeaveRequest {
+  id        Int         @id @default(autoincrement())
+  userId    String
+  user      User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  fromDate  DateTime    @db.Date
+  toDate    DateTime    @db.Date
+  reason    String
+  status    LeaveStatus @default(PENDING)
+  adminNote String?
+  createdAt DateTime    @default(now())
+  decidedAt DateTime?
+}
+
+model PasswordResetToken {
+  id        Int      @id @default(autoincrement())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+}
+
