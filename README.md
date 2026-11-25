@@ -2,22 +2,14 @@
 
 A full-stack web app that helps PG and hostel owners and their residents manage **rent, meals, maintenance requests and leave** in one place, replacing paper registers and WhatsApp messages.
 
-**Live demo:** https://YOUR-LIVE-ADDRESS.vercel.app
-**Source code:** https://github.com/YOUR-USERNAME/hos-tell
+**Live demo:** [https://YOUR-LIVE-ADDRESS.vercel.app](https://hos-tell.vercel.app/)
+**Source code:** https://github.com/puvalasailaja5125/hos-tell
 
 > Rent is tracked inside the app (bills, paid and pending status, history). Online payment is not included.
 
-## Screenshots
+## Demo
 
-| Landing page | Tenant dashboard |
-|---|---|
-| ![Landing page](docs/landing.png) | ![Tenant dashboard](docs/tenant-dashboard.png) |
-
-| Admin dashboard | Leave requests with dues |
-|---|---|
-| ![Admin dashboard](docs/admin-dashboard.png) | ![Leave requests](docs/admin-leaves.png) |
-
-*(Add your own images to a `docs/` folder and update the file names above.)*
+https://youtu.be/R6-xcZEX4No
 
 ## Features
 
