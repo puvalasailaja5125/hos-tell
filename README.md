@@ -1,36 +1,140 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app).
+# Hos-Tell: Smart PG / Hostel & Mess Manager
 
-## Getting Started
+A full-stack web app that helps PG and hostel owners and their residents manage **rent, meals, maintenance requests and leave** in one place, replacing paper registers and WhatsApp messages.
 
-First, run the development server:
+**Live demo:** https://YOUR-LIVE-ADDRESS.vercel.app
+**Source code:** https://github.com/YOUR-USERNAME/hos-tell
+
+> Rent is tracked inside the app (bills, paid and pending status, history). Online payment is not included.
+
+## Screenshots
+
+| Landing page | Tenant dashboard |
+|---|---|
+| ![Landing page](docs/landing.png) | ![Tenant dashboard](docs/tenant-dashboard.png) |
+
+| Admin dashboard | Leave requests with dues |
+|---|---|
+| ![Admin dashboard](docs/admin-dashboard.png) | ![Leave requests](docs/admin-leaves.png) |
+
+*(Add your own images to a `docs/` folder and update the file names above.)*
+
+## Features
+
+### For tenants
+- **Dashboard** with room, monthly rent, rent due banner, tomorrow's meals and recent tickets
+- **Rent:** see every monthly bill, its status (pending or paid) and the date it was paid
+- **Meals:** all meals (breakfast, lunch, snacks, dinner) are on by default. Skip any meal for the coming days until 10 PM the night before, so the kitchen cooks less food that gets wasted
+- **Maintenance tickets:** report a problem and follow it from Open to In progress to Resolved
+- **Leave requests:** apply in advance with a from date, a to date (they can be the same day) and a reason. See the result in the app: a friendly approval message, or the owner's reason for rejecting
+
+### For the owner (admin)
+- **Overview dashboard:** attention banner, tenant and room counts, this month's rent collected versus pending, tomorrow's kitchen headcount, and the latest pending leave requests and open tickets
+- **Tenants:** assign each tenant to a room
+- **Rent:** generate a month's bills for every tenant with one click (safe to click twice), mark bills paid or unpaid, and see totals
+- **Meals:** headcount per meal for any date, with a per-tenant breakdown. Residents on approved leave are excluded automatically
+- **Tickets:** filter by status and update progress
+- **Leave requests:** see the tenant's pending rent dues next to each request, then approve or reject. Rejecting requires a reason, and a standard "clear your dues first" message is suggested when the tenant has unpaid rent
+
+### For everyone
+- Marketing landing page with an offers carousel, filterable facilities, a weekly mess menu, FAQ and a mobile menu
+- Registration, login and logout
+- **Forgot password by email** with a one-time link that expires in 30 minutes
+- Fully responsive layout, with loading, error and 404 pages
+
+## Tech stack
+
+| Area | Technology |
+|---|---|
+| Framework | Next.js (App Router), React |
+| Styling and UI | Tailwind CSS, shadcn/ui, Lucide icons |
+| Database | PostgreSQL on Neon |
+| ORM | Prisma 6 |
+| Auth | bcryptjs for password hashing, JWT (jose) in an httpOnly cookie |
+| Email | Nodemailer with an SMTP provider (Gmail) |
+| Hosting | Vercel |
+
+## How it is built
+
+- **Role-based access control (Admin and Tenant).** The role is stored in the database and signed into the session cookie. Users never choose their role: registration always creates a tenant, and admins are created only by the seed script.
+- **Two layers of protection.** Pages redirect the wrong role away, and every API route independently checks the role and returns `401` or `403`, since the API is what really matters for security.
+- **Server-side validation.** Dates, lengths, statuses and ownership are checked on the server. For example, tenants can only read and change their own rent, meals, tickets and leave, because the user id always comes from the signed cookie and never from the request.
+- **Safe password reset.** Reset tokens are random, only a hash of the token is stored, each link is single-use, expires after 30 minutes, and the forgot-password endpoint answers the same way whether or not the email exists.
+- **Time zone safe dates.** Days are handled as plain `YYYY-MM-DD` strings in Indian time, so meals and leave never shift to the wrong day on a server running in UTC.
+- **Idempotent billing.** A unique constraint on tenant and month, combined with `skipDuplicates`, means generating bills twice never creates duplicates.
+- **Meal opt-out model.** Only explicit choices are stored. No row means the tenant is eating, which keeps the data small and the headcount simple.
+
+## Data model
+
+`User` (role: ADMIN or TENANT) belongs to a `Room`. A user has many `RentPayment`, `MealOptIn`, `Ticket`, `LeaveRequest` and `PasswordResetToken` records.
+
+## Getting started
+
+### Prerequisites
+- Node.js 20.6 or newer
+- A PostgreSQL database (a free [Neon](https://neon.tech) project works well)
+- Optional: a Gmail account with an app password, for password reset emails. Without SMTP settings, reset links are printed in the terminal instead.
+
+### Setup
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+git clone https://github.com/YOUR-USERNAME/hos-tell.git
+cd hos-tell
+npm install
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Create a `.env` file in the project root (see the table below), then:
 
-You can start editing the page by modifying `app/page.js`. The page auto-updates as you edit the file.
+```bash
+# create the tables
+npx prisma migrate dev
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+# create sample rooms and the admin account
+node --env-file=.env prisma/seed.js
 
-## Learn More
+# start the app at http://localhost:3000
+npm run dev
+```
 
-To learn more about Next.js, take a look at the following resources:
+Log in with the `ADMIN_EMAIL` and `ADMIN_PASSWORD` you set, then use **Forgot password** to choose your own password.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+### Environment variables
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+| Name | Purpose |
+|---|---|
+| `DATABASE_URL` | Database connection string used by the app (use Neon's pooled string in production) |
+| `DIRECT_URL` | Direct (non-pooled) connection string used by Prisma migrations |
+| `JWT_SECRET` | Long random string used to sign login cookies |
+| `APP_URL` | Public address of the app, used to build password reset links (`http://localhost:3000` locally) |
+| `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS` | Email server settings. Leave out to print reset links in the terminal instead |
+| `MAIL_FROM` | Sender shown on emails, for example `Hos-Tell <you@gmail.com>` |
+| `ADMIN_EMAIL`, `ADMIN_PASSWORD` | Used only by the seed script to create the first admin |
 
-## Deploy on Vercel
+Generate a `JWT_SECRET` with:
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+```bash
+node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+```
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Never commit your `.env` file.
+
+## Deployment
+
+The app is deployed on Vercel with a Neon database.
+
+1. Push the repository to GitHub and import it into Vercel.
+2. Add the environment variables above in the Vercel project settings (not `ADMIN_EMAIL` or `ADMIN_PASSWORD`). Set `DATABASE_URL` to the pooled connection string and `DIRECT_URL` to the direct one.
+3. Set `APP_URL` to the deployed address and redeploy.
+4. When the schema changes, apply migrations to the live database with `npx prisma migrate deploy`.
+
+A `postinstall` script runs `prisma generate` so the Prisma client is always up to date on every build.
+
+## Known limitations and ideas
+
+- Resetting a password does not sign out devices that are already logged in, because sessions are stateless. A token version stored on the user would fix this.
+- The free database sleeps when idle, so the first request after a quiet period can be slow.
+- Possible extensions: online rent payment, notifications for leave decisions and new tickets, support for multiple PGs under one owner, and downloadable rent receipts.
+
+## Author
+
+Built by **Sailaja**, a computer science and engineering student, as a full-stack project using Next.js, Prisma and PostgreSQL.
